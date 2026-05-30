@@ -118,8 +118,8 @@ async function sendList(message, byCat, sortedCats, page, prefix, commandName) {
   lines.push(`▸ ${prefix}${commandName} ${f('<cmdname>', 'italic')}  for details`);
 
   const buttons = [];
-  if (currentPage > 1)            buttons.push({ content_type: 'postback', title: '◀ Prev',  payload: `HELP_PAGE_${currentPage - 1}` });
-  if (currentPage < totalPages)   buttons.push({ content_type: 'postback', title: 'Next ▶', payload: `HELP_PAGE_${currentPage + 1}` });
+  if (currentPage > 1)            buttons.push({ type: 'postback', title: '◀ Prev',  payload: `HELP_PAGE_${currentPage - 1}` });
+  if (currentPage < totalPages)   buttons.push({ type: 'postback', title: 'Next ▶', payload: `HELP_PAGE_${currentPage + 1}` });
 
   const body = lines.join('\n');
   return buttons.length ? message.sendButton(body, buttons) : message.reply(body);
