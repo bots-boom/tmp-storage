@@ -4,7 +4,7 @@ module.exports = {
   config: {
     name: 'help',
     aliases: ['h', 'menu'],
-    version: '3.0',
+    version: '3.0', 
     author: 'Ayan',
     countDown: 5,
     role: 0,
