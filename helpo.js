@@ -3,18 +3,18 @@
 module.exports = {
   config: {
     name: 'help',
-    aliases: ['h'],
-    version: '2.0',
+    aliases: ['h', 'menu'],
+    version: '3.0',
     author: 'Ayan',
     countDown: 5,
     role: 0,
-    description: { en: 'Show command list or command details' },
-    category: 'bot',
+    description: { en: 'Displays a beautiful command menu.' },
+    category: 'system',
     guide: {
       en: [
-        '   {pn}            — list all commands',
-        '   {pn} <page>     — jump to a page',
-        '   {pn} <command>  — show command details'
+        '   {pn}            — Open the menu',
+        '   {pn} <page>     — Go to specific page',
+        '   {pn} <command>  — View command info'
       ].join('\n')
     },
     payload: 'HELP_PAYLOAD',
@@ -23,142 +23,144 @@ module.exports = {
 
   langs: {
     en: {
-      commandNotFound: '⚠️ Command "%1" not found.',
-      noAlias:         '—',
-      roleEveryone:    'everyone',
-      roleNsfw:        'NSFW user',
-      roleAdmin:       'bot admin'
+      commandNotFound: '⚠️ Oops! The command "%1" does not exist.',
+      noAlias: 'None',
+      roleEveryone: 'Everyone 🟢',
+      roleNsfw: 'NSFW Only 🔞',
+      roleAdmin: 'Admin Only 🔴'
     }
   },
 
   onStart: async function ({ args, message, prefix, getLang, commandName, isAdmin }) {
     let commands = Array.from(global.PageBot.commands.values());
 
+    // Filter commands based on user role
     if (!isAdmin) {
       commands = commands.filter(cmd => (cmd.config.role || 0) < 2);
     }
 
-    const byCat = {};
+    // Group commands by category
+    const categorized = {};
     for (const cmd of commands) {
-      const cat = (cmd.config.category || 'misc').toLowerCase();
-      (byCat[cat] = byCat[cat] || []).push(cmd);
+      const cat = (cmd.config.category || 'uncategorized').toLowerCase();
+      if (!categorized[cat]) categorized[cat] = [];
+      categorized[cat].push(cmd);
     }
-    for (const cat in byCat) {
-      byCat[cat].sort((a, b) => a.config.name.localeCompare(b.config.name));
-    }
-    const sortedCats = Object.keys(byCat).sort();
 
+    // Sort categories alphabetically
+    const sortedCats = Object.keys(categorized).sort();
+
+    // Handle single command detail view
     if (args[0] && isNaN(args[0])) {
-      const key = args[0].toLowerCase();
-      const cmd = global.PageBot.commands.get(key)
-               || global.PageBot.commands.get(global.PageBot.aliases.get(key));
-      if (!cmd) return message.reply(getLang('commandNotFound', args[0]));
-      if (!isAdmin && (cmd.config.role || 0) >= 2) {
+      const query = args[0].toLowerCase();
+      const cmd = global.PageBot.commands.get(query) 
+               || global.PageBot.commands.get(global.PageBot.aliases.get(query));
+      
+      if (!cmd || (!isAdmin && (cmd.config.role || 0) >= 2)) {
         return message.reply(getLang('commandNotFound', args[0]));
       }
-      return message.reply(buildDetail(cmd, prefix, getLang));
+      return message.reply(buildDetailView(cmd, prefix, getLang));
     }
 
+    // Handle paginated list view
     const page = parseInt(args[0], 10) || 1;
-    return sendList(message, byCat, sortedCats, page, prefix, commandName);
+    return sendAestheticList(message, categorized, sortedCats, page, prefix, commandName);
   }
 };
 
-const CAT_ICON = {
-  info:     'ℹ️',
-  utility:  '🛠️',
-  economy:  '💰',
-  fun:      '🎉',
-  game:     '🎮',
-  anime:    '🌸',
-  image:    '🖼️',
-  media:    '🎬',
-  ai:       '🤖',
-  nsfw:     '🔞',
-  admin:    '🛡️',
-  system:   '⚙️',
-  misc:     '📦',
-  bot:      '👻',
-  search:   '🔎'
+/* ─────────────────────────────────────────────────────────
+   Aesthetic Helper Functions
+───────────────────────────────────────────────────────── */
+
+const CAT_EMOJIS = {
+  info: 'ℹ️', utility: '🛠️', economy: '💳', fun: '🎈',
+  game: '🎮', anime: '🌸', image: '🖼️', media: '🎬',
+  ai: '🤖', nsfw: '🔞', admin: '🛡️', system: '⚙️',
+  misc: '📦', bot: '✨', search: '🔍'
 };
 
-async function sendList(message, byCat, sortedCats, page, prefix, commandName) {
-  const f = global.utils.font;
+async function sendAestheticList(message, categorized, sortedCats, page, prefix, commandName) {
+  const flatList = [];
+  for (const cat of sortedCats) {
+    for (const cmd of categorized[cat]) flatList.push({ cat, cmd });
+  }
 
-  const flat = [];
-  for (const cat of sortedCats) for (const cmd of byCat[cat]) flat.push({ cat, cmd });
-
-  const perPage     = 12;
-  const totalCmds   = flat.length;
-  const totalPages  = Math.max(1, Math.ceil(totalCmds / perPage));
+  // Set perPage to 6 to absolutely guarantee safety from FB's 640 char limit
+  const perPage = 6;
+  const totalCmds = flatList.length;
+  const totalPages = Math.max(1, Math.ceil(totalCmds / perPage));
   const currentPage = Math.max(1, Math.min(page, totalPages));
-  const start       = (currentPage - 1) * perPage;
-  const slice       = flat.slice(start, start + perPage);
+  
+  const startIndex = (currentPage - 1) * perPage;
+  const pageItems = flatList.slice(startIndex, startIndex + perPage);
 
-  const lines = [];
-  lines.push(`🌊  ${f('Ayan', 'bold')}  ·  ${f('Available cmds', 'bold')}`);
-  lines.push('');
+  // Build the Header
+  let text = `╭─── ✧ 𝗔𝗬𝗔𝗡 𝗠𝗘𝗡𝗨 ✧ ───╮\n\n`;
 
-  let lastCat = '';
-  for (const { cat, cmd } of slice) {
-    if (cat !== lastCat) {
-      if (lastCat) lines.push('');
-      const icon = CAT_ICON[cat] || '•';
-      const count = byCat[cat].length;
-      lines.push(`${icon}  ${f(cat.toUpperCase(), 'bold')}  (${count})`);
-      lastCat = cat;
+  // Build the Command List
+  let currentCategory = '';
+  for (const { cat, cmd } of pageItems) {
+    if (cat !== currentCategory) {
+      if (currentCategory) text += `\n`; // Add spacing between different categories
+      const emoji = CAT_EMOJIS[cat] || '📁';
+      const catTitle = cat.charAt(0).toUpperCase() + cat.slice(1);
+      text += `${emoji} — ${catTitle.toUpperCase()} —\n`;
+      currentCategory = cat;
     }
-    const name =  cmd.config.name || ''; 
-    const desc = cmd.config.description?.en || '';
-    lines.push(`  • ${f(name, 'sansitalic')} : ${desc}`);
+    
+    const name = cmd.config.name;
+    const rawDesc = cmd.config.description?.en || 'No description provided.';
+    // Truncate descriptions to keep the string lightweight
+    const desc = rawDesc.length > 25 ? rawDesc.substring(0, 22) + '...' : rawDesc;
+
+    text += ` ╰┈➤ ${prefix}${name} : ${desc}\n`;
   }
 
-  lines.push('');
-  lines.push(`▸ Page ${f(String(currentPage), 'bold')}/${f(String(totalPages), 'bold')}  ·  ${f(String(totalCmds), 'bold')} commands`);
-  lines.push(`▸ ${prefix}${commandName} ${f('<cmdname>', 'italic')}  for details`);
+  // Build the Footer
+  text += `\n╰─────────────────────╯\n`;
+  text += ` 📄 𝗣𝗮𝗴𝗲 [ ${currentPage} / ${totalPages} ]  ·  ${totalCmds} 𝗰𝗺𝗱𝘀\n`;
+  text += ` 💡 𝗧𝗶𝗽: ${prefix}${commandName} <cmd_name>`;
 
+  // Build Buttons
   const buttons = [];
-  if (currentPage > 1)            buttons.push({ type: 'postback', title: '◀ Prev',  payload: `HELP_PAGE_${currentPage - 1}` });
-  if (currentPage < totalPages)   buttons.push({ type: 'postback', title: 'Next ▶', payload: `HELP_PAGE_${currentPage + 1}` });
+  if (currentPage > 1) {
+    buttons.push({ type: 'postback', title: '◀ Back', payload: `HELP_PAGE_${currentPage - 1}` });
+  }
+  if (currentPage < totalPages) {
+    buttons.push({ type: 'postback', title: 'Next ▶', payload: `HELP_PAGE_${currentPage + 1}` });
+  }
 
-  const body = lines.join('\n');
-  return buttons.length ? message.sendButton(body, buttons) : message.reply(body);
+  return buttons.length ? message.sendButton(text, buttons) : message.reply(text);
 }
 
-function buildDetail(cmd, prefix, getLang) {
-  const f   = global.utils.font;
+function buildDetailView(cmd, prefix, getLang) {
   const cfg = cmd.config;
 
   const aliases = cfg.aliases?.length ? cfg.aliases.join(', ') : getLang('noAlias');
   const role = cfg.role || 0;
-  const roleLabel =
-    role >= 2 ? `${f('2', 'bold')} · ${getLang('roleAdmin')} 🛡️` :
-    role === 1 ? `${f('1', 'bold')} · ${getLang('roleNsfw')} 🔞` :
-                 `${f('0', 'bold')} · ${getLang('roleEveryone')}`;
-
+  const roleLabel = role >= 2 ? getLang('roleAdmin') : role === 1 ? getLang('roleNsfw') : getLang('roleEveryone');
+  
   const cat = (cfg.category || 'misc').toLowerCase();
-  const catIcon = CAT_ICON[cat] || '📦';
+  const catIcon = CAT_EMOJIS[cat] || '📁';
+  const catTitle = cat.charAt(0).toUpperCase() + cat.slice(1);
 
-  const guide = cfg.guide?.en
-    ? cfg.guide.en.replace(/\{pn\}/g, prefix + cfg.name)
-    : `${prefix}${cfg.name}`;
+  const guide = cfg.guide?.en ? cfg.guide.en.replace(/\{pn\}/g, prefix + cfg.name) : `${prefix}${cfg.name}`;
 
-  const lines = [];
-  lines.push(`✦  ${f(cfg.name, 'bold')}`);
-  if (cfg.description?.en) lines.push(`✎ ${cfg.description.en}\n`);
+  let text = `✦ 𝗖𝗢𝗠𝗠𝗔𝗡𝗗: ${cfg.name.toUpperCase()} ✦\n`;
+  text += `━━━━━━━━━━━━━━━━━━━━\n`;
+  text += ` 🏷️ 𝗔𝗹𝗶𝗮𝘀𝗲𝘀  : ${aliases}\n`;
+  text += ` ${catIcon} 𝗖𝗮𝘁𝗲𝗴𝗼𝗿𝘆 : ${catTitle}\n`;
+  text += ` ⏱️ 𝗖𝗼𝗼𝗹𝗱𝗼𝘄𝗻 : ${cfg.countDown || 0}s\n`;
+  text += ` 🛡️ 𝗔𝗰𝗰𝗲𝘀𝘀   : ${roleLabel}\n`;
+  text += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+  
+  text += `📖 𝗗𝗲𝘀𝗰𝗿𝗶𝗽𝘁𝗶𝗼𝗻:\n`;
+  text += `${cfg.description?.en || 'No description provided.'}\n\n`;
 
-  lines.push(`📋 ${f('INFO', 'bold')}`);
-  lines.push(`   • Aliases   : ${aliases}`);
-  lines.push(`   • Category  : ${catIcon} ${cat}`);
-  lines.push(`   • Access    : ${roleLabel}`);
-  lines.push(`   • Cooldown  : ${f(String(cfg.countDown || 0), 'bold')}s`);
-  lines.push(`   • Version   : ${f(String(cfg.version || '1.0'), 'bold')}`);
-    lines.push('');
-
-  lines.push(`📖 ${f('USAGE', 'bold')}`);
-  for (const l of guide.split('\n')) {
-    lines.push(' ' + l.replace(/^\s+/, ''));
+  text += `🛠️ 𝗨𝘀𝗮𝗴𝗲 𝗚𝘂𝗶𝗱𝗲:\n`;
+  for (const line of guide.split('\n')) {
+    text += `${line.trim()}\n`;
   }
 
-  return lines.join('\n');
+  return text.trim();
 }
