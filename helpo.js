@@ -122,7 +122,7 @@ async function sendList(message, byCat, sortedCats, page, prefix, commandName) {
   if (currentPage < totalPages)   buttons.push({ content_type: 'postback', title: 'Next ▶', payload: `HELP_PAGE_${currentPage + 1}` });
 
   const body = lines.join('\n');
-  return qr.length ? message.sendButton(body, buttons) : message.reply(body);
+  return buttons.length ? message.sendButton(body, buttons) : message.reply(body);
 }
 
 function buildDetail(cmd, prefix, getLang) {
