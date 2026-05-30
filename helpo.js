@@ -64,7 +64,6 @@ module.exports = {
   }
 };
 
-const RULE = '━━━━━━━━━━━━━━━━━━━';
 const CAT_ICON = {
   info:     'ℹ️',
   utility:  '🛠️',
@@ -98,7 +97,6 @@ async function sendList(message, byCat, sortedCats, page, prefix, commandName) {
 
   const lines = [];
   lines.push(`🌊  ${f('Ayan', 'bold')}  ·  ${f('Available cmds', 'bold')}`);
-  lines.push(RULE);
   lines.push('');
 
   let lastCat = '';
@@ -112,23 +110,19 @@ async function sendList(message, byCat, sortedCats, page, prefix, commandName) {
     }
     const name =  cmd.config.name || ''; 
     const desc = cmd.config.description?.en || '';
-    lines.push(`   • ${f(name, 'sansitalic')} : ${desc}`);
+    lines.push(`  • ${f(name, 'sansitalic')} : ${desc}`);
   }
 
   lines.push('');
-  lines.push(RULE);
-  lines.push(`📑 Page ${f(String(currentPage), 'bold')}/${f(String(totalPages), 'bold')}  ·  ${f(String(totalCmds), 'bold')} commands`);
-  lines.push(`💡 ${prefix}${commandName} <cmd>  for details`);
-  if (totalPages > 1) {
-    lines.push(`↪ ${prefix}${commandName} <page>  for more`);
-  }
+  lines.push(`▸ Page ${f(String(currentPage), 'bold')}/${f(String(totalPages), 'bold')}  ·  ${f(String(totalCmds), 'bold')} commands`);
+  lines.push(`▸ ${prefix}${commandName} ${f('<cmdname>', 'italic')}  for details`);
 
-  const qr = [];
-  if (currentPage > 1)            qr.push({ content_type: 'text', title: '◀ Prev',  payload: `HELP_PAGE_${currentPage - 1}` });
-  if (currentPage < totalPages)   qr.push({ content_type: 'text', title: 'Next ▶', payload: `HELP_PAGE_${currentPage + 1}` });
+  const buttons = [];
+  if (currentPage > 1)            buttons.push({ content_type: 'postback', title: '◀ Prev',  payload: `HELP_PAGE_${currentPage - 1}` });
+  if (currentPage < totalPages)   buttons.push({ content_type: 'postback', title: 'Next ▶', payload: `HELP_PAGE_${currentPage + 1}` });
 
   const body = lines.join('\n');
-  return qr.length ? message.sendQuickReply(body, qr) : message.reply(body);
+  return qr.length ? message.sendButton(body, buttons) : message.reply(body);
 }
 
 function buildDetail(cmd, prefix, getLang) {
@@ -156,11 +150,10 @@ function buildDetail(cmd, prefix, getLang) {
   lines.push(`📋 ${f('INFO', 'bold')}`);
   lines.push(`   • Aliases   : ${aliases}`);
   lines.push(`   • Category  : ${catIcon} ${cat}`);
-  lines.push(`   • Role      : ${roleLabel}`);
+  lines.push(`   • Access    : ${roleLabel}`);
   lines.push(`   • Cooldown  : ${f(String(cfg.countDown || 0), 'bold')}s`);
   lines.push(`   • Version   : ${f(String(cfg.version || '1.0'), 'bold')}`);
-  lines.push(`   • Author    : ${cfg.author || 'unknown'}`);
-  lines.push('');
+    lines.push('');
 
   lines.push(`📖 ${f('USAGE', 'bold')}`);
   for (const l of guide.split('\n')) {
